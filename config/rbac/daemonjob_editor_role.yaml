@@ -1,0 +1,24 @@
+# permissions for end users to edit daemonjobs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: daemonjob-editor-role
+rules:
+- apiGroups:
+  - dj.dysproz.io
+  resources:
+  - daemonjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - dj.dysproz.io
+  resources:
+  - daemonjobs/status
+  verbs:
+  - get

@@ -1,0 +1,10 @@
+domain: dysproz.io
+layout: go.kubebuilder.io/v2
+repo: github.com/Dysproz/DaemonJob
+resources:
+- group: dj
+  kind: DaemonJob
+  version: v1
+version: 3-alpha
+plugins:
+  go.operator-sdk.io/v2-alpha: {}

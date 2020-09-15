@@ -1,0 +1,20 @@
+# permissions for end users to view daemonjobs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: daemonjob-viewer-role
+rules:
+- apiGroups:
+  - dj.dysproz.io
+  resources:
+  - daemonjobs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - dj.dysproz.io
+  resources:
+  - daemonjobs/status
+  verbs:
+  - get
