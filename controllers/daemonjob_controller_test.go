@@ -125,3 +125,53 @@ func TestDaemonJobControllerUpdate(t *testing.T) {
 		assert.Equal(t, &expectedCompletions, job.Spec.Completions)
 	})
 }
+
+func TestGetJob(t *testing.T){
+	var replicas int32 = 6
+	expectedJob := &batchv1.Job{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Job",
+			APIVersion: "batch/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      daemonjobCR.Name + "-job",
+			Namespace: daemonjobCR.Namespace,
+			Labels:    daemonjobCR.Labels,
+		},
+		Spec: batchv1.JobSpec{
+			Parallelism:             &replicas,
+			Completions:             &replicas,
+			Selector:                daemonjobCR.Spec.Selector,
+			Template:                corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name: "test-container",
+							Image: "test-image",
+						},
+					},
+					RestartPolicy: "OnFailure",
+					Affinity: &corev1.Affinity{
+						PodAntiAffinity: &corev1.PodAntiAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
+								LabelSelector: &metav1.LabelSelector{
+									MatchExpressions: []metav1.LabelSelectorRequirement{{
+										Key:      "daemonjob",
+										Operator: "In",
+										Values:   []string{"test-req"},
+									}},
+								},
+								TopologyKey: "kubernetes.io/hostname",
+							}},
+						},
+					},
+				},
+			},
+			ManualSelector:          daemonjobCR.Spec.ManualSelector,
+			TTLSecondsAfterFinished: daemonjobCR.Spec.TTLSecondsAfterFinished,
+			BackoffLimit:            daemonjobCR.Spec.BackoffLimit,
+			ActiveDeadlineSeconds:   daemonjobCR.Spec.ActiveDeadlineSeconds,
+		},
+	}
+	assert.ObjectsAreEqual(expectedJob, getJob(daemonjobCR, &replicas, "test-req", "daemonjob"))
+}

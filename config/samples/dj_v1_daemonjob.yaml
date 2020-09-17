@@ -4,6 +4,7 @@ metadata:
   name: daemonjob-sample
 spec:
   template:
-    containers:
-      - name: nginx
-        image: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx
