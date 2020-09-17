@@ -25,58 +25,47 @@ endif
 
 all: manager
 
-# Run tests
-test: generate fmt vet manifests
+help:
+	@perl -nle'print $& if m{^[a-zA-Z_-]+:.*?## .*$$}' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
+
+test: ## Run tests
 	go test ./... -coverprofile cover.out
 
-# Build manager binary
-manager: generate fmt vet
+manager: ## Build manager binary
 	go build -o bin/manager main.go
 
-# Run against the configured Kubernetes cluster in ~/.kube/config
-run: generate fmt vet manifests
+run: ## Run against the configured Kubernetes cluster in ~/.kube/config
 	go run ./main.go
 
-# Install CRDs into a cluster
-install: manifests kustomize
+install: ## Install CRDs into a cluster
 	$(KUSTOMIZE) build config/crd | kubectl apply -f -
 
-# Uninstall CRDs from a cluster
-uninstall: manifests kustomize
+uninstall: ## Uninstall CRDs from a cluster
 	$(KUSTOMIZE) build config/crd | kubectl delete -f -
 
-# Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-deploy: manifests kustomize
+deploy: ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
-# Generate manifests e.g. CRD, RBAC etc.
-manifests: controller-gen
+manifests: ## Generate manifests e.g. CRD, RBAC etc.
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
-# Run go fmt against code
-fmt:
+fmt: ## Run go fmt against code
 	go fmt ./...
 
-# Run go vet against code
-vet:
+vet: ## Run go vet against code
 	go vet ./...
 
-# Generate code
-generate: controller-gen
+generate: ### Generate code
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
-# Build the docker image
-docker-build: test
+docker-build: ## Build the docker image
 	docker build . -t ${IMG}
 
-# Push the docker image
-docker-push:
+docker-push: ## Push the docker image
 	docker push ${IMG}
 
-# find or download controller-gen
-# download controller-gen if necessary
-controller-gen:
+controller-gen: ## find or download controller-gen; download controller-gen if necessary
 ifeq (, $(shell which controller-gen))
 	@{ \
 	set -e ;\
@@ -106,12 +95,10 @@ else
 KUSTOMIZE=$(shell which kustomize)
 endif
 
-# Generate bundle manifests and metadata, then validate generated files.
-bundle: manifests
+bundle: ## Generate bundle manifests and metadata, then validate generated files.
 	operator-sdk generate kustomize manifests -q
 	kustomize build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	operator-sdk bundle validate ./bundle
 
-# Build the bundle image.
-bundle-build:
+bundle-build: ## Build the bundle image.
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .

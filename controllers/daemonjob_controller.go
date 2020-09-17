@@ -45,6 +45,8 @@ type DaemonJobReconciler struct {
 
 // +kubebuilder:rbac:groups=dj.dysproz.io,resources=daemonjobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=dj.dysproz.io,resources=daemonjobs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 
 // SetupWithManager function specifies how the controller is built to watch a CR and
 // other resources that are owned and managed by that controller.
@@ -160,6 +162,10 @@ func getJob(instance *djv1.DaemonJob, replicas *int32, reqName, instanceType str
 
 	var podSpec = instance.Spec.Template
 	podSpec.Spec.Affinity = &jobAffinity
+
+	if podSpec.Spec.RestartPolicy == "Always" {
+		podSpec.Spec.RestartPolicy = "OnFailure"
+	}
 
 	return &batchv1.Job{
 		TypeMeta: metav1.TypeMeta{
