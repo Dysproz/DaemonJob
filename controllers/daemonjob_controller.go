@@ -105,8 +105,8 @@ func (r *DaemonJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	nodeSelector := client.MatchingLabels{}
-	if instance.Spec.Selector != nil {
-		nodeSelector = instance.Spec.Selector.MatchLabels
+	if instance.Spec.Template.Spec.NodeSelector != nil {
+		nodeSelector = instance.Spec.Template.Spec.NodeSelector
 	}
 	var nodesListOptions client.MatchingLabels = nodeSelector
 	var nodes corev1.NodeList
@@ -122,9 +122,17 @@ func (r *DaemonJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	var clusterJob batchv1.Job
 	if err := r.Client.Get(ctx, types.NamespacedName{Name: job.Name, Namespace: job.Namespace}, &clusterJob); err == nil {
-		if *clusterJob.Spec.Completions != jobReplicas || clusterJob.Labels["controller_generation"] != job.Labels["controller_generation"] {
+		if *clusterJob.Spec.Completions != jobReplicas {
 			_ = r.Client.Delete(ctx, &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: job.Name, Namespace: job.Namespace}}, client.PropagationPolicy("Background"))
 			return reconcile.Result{RequeueAfter: 5}, nil
+		} else {
+			_, err = ctrl.CreateOrUpdate(ctx, r, &clusterJob, func() error {
+				modifyJob(job, &clusterJob)
+				return controllerutil.SetControllerReference(instance, &clusterJob, r.Scheme)
+			})
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 		}
 	} else if errors.IsNotFound(err) {
 		if err := r.Client.Create(ctx, job); err != nil {
@@ -188,4 +196,11 @@ func getJob(instance *djv1.DaemonJob, replicas *int32, reqName, instanceType str
 			ActiveDeadlineSeconds:   instance.Spec.ActiveDeadlineSeconds,
 		},
 	}
+}
+
+func modifyJob(job, clusterJob *batchv1.Job) {
+	job.Spec.Selector = clusterJob.Spec.Selector
+	job.Spec.Template.ObjectMeta.Labels = clusterJob.Spec.Template.ObjectMeta.Labels
+	clusterJob.Spec = job.Spec
+	clusterJob.Annotations = job.Annotations
 }
