@@ -5,3 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: dysproz/daemon-job
+  newTag: latest

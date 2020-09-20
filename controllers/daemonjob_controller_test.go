@@ -53,8 +53,6 @@ func TestDaemonJobController(t *testing.T) {
 	fakeClient := fake.NewFakeClientWithScheme(scheme, daemonjobCR)
 	reconciler := DaemonJobReconciler{fakeClient, ctrl.Log.WithName("controllers").WithName("DaemonJob"), scheme}
 	_, err = reconciler.Reconcile(reconcile.Request{NamespacedName: daemonjobName})
-	assert.Error(t, err)
-	_, err = reconciler.Reconcile(reconcile.Request{NamespacedName: daemonjobName})
 	assert.NoError(t, err)
 
 	t.Run("should create job for daemonjob", func(t *testing.T) {
@@ -109,8 +107,6 @@ func TestDaemonJobControllerUpdate(t *testing.T) {
 	_, err = reconciler.Reconcile(reconcile.Request{NamespacedName: daemonjobName})
 	assert.NoError(t, err)
 	_, err = reconciler.Reconcile(reconcile.Request{NamespacedName: daemonjobName})
-	assert.Error(t, err)
-	_, err = reconciler.Reconcile(reconcile.Request{NamespacedName: daemonjobName})
 	assert.NoError(t, err)
 
 	t.Run("should update job for daemonjob", func(t *testing.T) {
@@ -126,7 +122,7 @@ func TestDaemonJobControllerUpdate(t *testing.T) {
 	})
 }
 
-func TestGetJob(t *testing.T){
+func TestGetJob(t *testing.T) {
 	var replicas int32 = 6
 	expectedJob := &batchv1.Job{
 		TypeMeta: metav1.TypeMeta{
@@ -139,14 +135,14 @@ func TestGetJob(t *testing.T){
 			Labels:    daemonjobCR.Labels,
 		},
 		Spec: batchv1.JobSpec{
-			Parallelism:             &replicas,
-			Completions:             &replicas,
-			Selector:                daemonjobCR.Spec.Selector,
-			Template:                corev1.PodTemplateSpec{
+			Parallelism: &replicas,
+			Completions: &replicas,
+			Selector:    daemonjobCR.Spec.Selector,
+			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name: "test-container",
+							Name:  "test-container",
 							Image: "test-image",
 						},
 					},
@@ -174,4 +170,113 @@ func TestGetJob(t *testing.T){
 		},
 	}
 	assert.ObjectsAreEqual(expectedJob, getJob(daemonjobCR, &replicas, "test-req", "daemonjob"))
+}
+
+func TestModifyJob(t *testing.T) {
+	var replicas int32 = 6
+	expectedJob := &batchv1.Job{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Job",
+			APIVersion: "batch/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      daemonjobCR.Name + "-job",
+			Namespace: daemonjobCR.Namespace,
+			Labels:    daemonjobCR.Labels,
+		},
+		Spec: batchv1.JobSpec{
+			Parallelism: &replicas,
+			Completions: &replicas,
+			Selector:    daemonjobCR.Spec.Selector,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "test-container",
+							Image: "test-image",
+						},
+					},
+					RestartPolicy: "OnFailure",
+					Affinity: &corev1.Affinity{
+						PodAntiAffinity: &corev1.PodAntiAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
+								LabelSelector: &metav1.LabelSelector{
+									MatchExpressions: []metav1.LabelSelectorRequirement{{
+										Key:      "daemonjob",
+										Operator: "In",
+										Values:   []string{"test-req"},
+									}},
+								},
+								TopologyKey: "kubernetes.io/hostname",
+							}},
+						},
+					},
+				},
+			},
+			ManualSelector:          daemonjobCR.Spec.ManualSelector,
+			TTLSecondsAfterFinished: daemonjobCR.Spec.TTLSecondsAfterFinished,
+			BackoffLimit:            daemonjobCR.Spec.BackoffLimit,
+			ActiveDeadlineSeconds:   daemonjobCR.Spec.ActiveDeadlineSeconds,
+		},
+	}
+	controllerJob := &batchv1.Job{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Job",
+			APIVersion: "batch/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      daemonjobCR.Name + "-job",
+			Namespace: daemonjobCR.Namespace,
+		},
+		Spec: batchv1.JobSpec{
+			Parallelism: &replicas,
+			Completions: &replicas,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "test-container",
+							Image: "test-image",
+						},
+					},
+					RestartPolicy: "OnFailure",
+					Affinity: &corev1.Affinity{
+						PodAntiAffinity: &corev1.PodAntiAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
+								LabelSelector: &metav1.LabelSelector{
+									MatchExpressions: []metav1.LabelSelectorRequirement{{
+										Key:      "daemonjob",
+										Operator: "In",
+										Values:   []string{"test-req"},
+									}},
+								},
+								TopologyKey: "kubernetes.io/hostname",
+							}},
+						},
+					},
+				},
+			},
+			ManualSelector:          daemonjobCR.Spec.ManualSelector,
+			TTLSecondsAfterFinished: daemonjobCR.Spec.TTLSecondsAfterFinished,
+			BackoffLimit:            daemonjobCR.Spec.BackoffLimit,
+			ActiveDeadlineSeconds:   daemonjobCR.Spec.ActiveDeadlineSeconds,
+		},
+	}
+
+	bareJob := &batchv1.Job{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Job",
+			APIVersion: "batch/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      daemonjobCR.Name + "-job",
+			Namespace: daemonjobCR.Namespace,
+			Labels:    daemonjobCR.Labels,
+		},
+		Spec: batchv1.JobSpec{
+			Selector: daemonjobCR.Spec.Selector,
+		},
+	}
+	modifyJob(controllerJob, bareJob)
+	assert.ObjectsAreEqual(expectedJob, bareJob)
 }

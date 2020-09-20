@@ -125,14 +125,17 @@ func (r *DaemonJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		if *clusterJob.Spec.Completions != jobReplicas {
 			_ = r.Client.Delete(ctx, &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: job.Name, Namespace: job.Namespace}}, client.PropagationPolicy("Background"))
 			return reconcile.Result{RequeueAfter: 5}, nil
-		} else {
-			_, err = ctrl.CreateOrUpdate(ctx, r, &clusterJob, func() error {
-				modifyJob(job, &clusterJob)
-				return controllerutil.SetControllerReference(instance, &clusterJob, r.Scheme)
-			})
-			if err != nil {
-				return reconcile.Result{}, err
+		}
+		_, err = ctrl.CreateOrUpdate(ctx, r, &clusterJob, func() error {
+			modifyJob(job, &clusterJob)
+			return controllerutil.SetControllerReference(instance, &clusterJob, r.Scheme)
+		})
+		if err != nil {
+			if errors.IsInvalid(err) {
+				_ = r.Client.Delete(ctx, &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: job.Name, Namespace: job.Namespace}}, client.PropagationPolicy("Background"))
+				return reconcile.Result{RequeueAfter: 5}, nil
 			}
+			return reconcile.Result{}, err
 		}
 	} else if errors.IsNotFound(err) {
 		if err := r.Client.Create(ctx, job); err != nil {
@@ -140,11 +143,6 @@ func (r *DaemonJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	} else {
 		return reconcile.Result{}, err
-	}
-
-	if err := r.Client.Get(context.TODO(), types.NamespacedName{Name: clusterJob.Name, Namespace: clusterJob.Namespace},
-		job); err != nil {
-		return ctrl.Result{}, err
 	}
 
 	instance.Status = &clusterJob.Status

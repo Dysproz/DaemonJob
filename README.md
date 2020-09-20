@@ -21,10 +21,9 @@ In order to apply all required manifests onto cluster just run `make install`.
 Afterwards, you'll need Pod with a manager running.
 You may create one with:
 ```
-export IMG=dysproz/daemon-job
 make deploy
 ```
-**NOTE**: You may of course apply your own image (for example with edits necessary for your project). In that case just export IMG as your image.
+**NOTE**: You may of course apply your own image (for example with edits necessary for your project). In that case just export IMG as your image (e.g. `export IMG=dysproz/daemon-job`).
 
 And that's it. Now you may create your own manifests for DaemonJob and apply them to the cluster.
 Example manifest may be found under *config/samples/dj_v1_daemonjob.yaml*.
