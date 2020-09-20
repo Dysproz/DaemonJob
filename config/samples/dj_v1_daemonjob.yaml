@@ -6,5 +6,11 @@ spec:
   template:
     spec:
       containers:
-        - name: nginx
-          image: nginx
+        - name: test-job
+          image: busybox
+          command:
+            - sleep
+            - "20"
+      nodeSelector:
+        app: v1
+      restartPolicy: OnFailure
