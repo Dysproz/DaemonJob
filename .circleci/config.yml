@@ -13,4 +13,3 @@ jobs:
 
       - run: go get -v -t -d ./...
       - run: make test
-

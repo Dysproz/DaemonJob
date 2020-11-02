@@ -118,7 +118,7 @@ func TestDaemonJobControllerUpdate(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotEmpty(t, job)
 		var expectedCompletions int32 = 0
-		assert.Equal(t, &expectedCompletions, job.Spec.Completions)
+		assert.Equal(t, expectedCompletions, *job.Spec.Completions)
 	})
 }
 
