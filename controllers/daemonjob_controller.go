@@ -104,13 +104,12 @@ func (r *DaemonJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return reconcile.Result{}, nil
 	}
 
-	nodeSelector := client.MatchingLabels{}
+	nodeSelector := map[string]string{}
 	if instance.Spec.Template.Spec.NodeSelector != nil {
 		nodeSelector = instance.Spec.Template.Spec.NodeSelector
 	}
-	var nodesListOptions client.MatchingLabels = nodeSelector
 	var nodes corev1.NodeList
-	if err := r.Client.List(ctx, &nodes, nodesListOptions); err != nil && errors.IsNotFound(err) {
+	if err := r.Client.List(ctx, &nodes, client.MatchingLabels(nodeSelector)); err != nil && errors.IsNotFound(err) {
 		return reconcile.Result{}, nil
 	}
 	jobReplicas := int32(len(nodes.Items))
@@ -121,27 +120,16 @@ func (r *DaemonJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	var clusterJob batchv1.Job
-	if err := r.Client.Get(ctx, types.NamespacedName{Name: job.Name, Namespace: job.Namespace}, &clusterJob); err == nil {
-		if *clusterJob.Spec.Completions != jobReplicas {
+	clusterJob.ObjectMeta = job.ObjectMeta
+	_, err = ctrl.CreateOrUpdate(ctx, r, &clusterJob, func() error {
+		modifyJob(job, &clusterJob)
+		return controllerutil.SetControllerReference(instance, &clusterJob, r.Scheme)
+	})
+	if err != nil {
+		if errors.IsInvalid(err) {
 			_ = r.Client.Delete(ctx, &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: job.Name, Namespace: job.Namespace}}, client.PropagationPolicy("Background"))
 			return reconcile.Result{RequeueAfter: 5}, nil
 		}
-		_, err = ctrl.CreateOrUpdate(ctx, r, &clusterJob, func() error {
-			modifyJob(job, &clusterJob)
-			return controllerutil.SetControllerReference(instance, &clusterJob, r.Scheme)
-		})
-		if err != nil {
-			if errors.IsInvalid(err) {
-				_ = r.Client.Delete(ctx, &batchv1.Job{ObjectMeta: metav1.ObjectMeta{Name: job.Name, Namespace: job.Namespace}}, client.PropagationPolicy("Background"))
-				return reconcile.Result{RequeueAfter: 5}, nil
-			}
-			return reconcile.Result{}, err
-		}
-	} else if errors.IsNotFound(err) {
-		if err := r.Client.Create(ctx, job); err != nil {
-			return reconcile.Result{}, err
-		}
-	} else {
 		return reconcile.Result{}, err
 	}
 
@@ -197,8 +185,6 @@ func getJob(instance *djv1.DaemonJob, replicas *int32, reqName, instanceType str
 }
 
 func modifyJob(job, clusterJob *batchv1.Job) {
-	job.Spec.Selector = clusterJob.Spec.Selector
-	job.Spec.Template.ObjectMeta.Labels = clusterJob.Spec.Template.ObjectMeta.Labels
 	clusterJob.Spec = job.Spec
 	clusterJob.Annotations = job.Annotations
 }
